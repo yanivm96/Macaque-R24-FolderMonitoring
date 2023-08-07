@@ -23,7 +23,7 @@ class FolderMonitor(FileSystemEventHandler):
 
     def check_data(self, file_path):
         file_name = self.get_file_name_from_file_path(file_path)
-        MISSING_FILE_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\Result\missing_samples_of' + file_name 
+        MISSING_FILE_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\Result\missing_samples_of ' + os.path.splitext(file_name)[0] 
         JSON_SCHEMA_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\jsonFormats\schema.json'
 
         with open(JSON_SCHEMA_PATH, 'r') as schema_file:
