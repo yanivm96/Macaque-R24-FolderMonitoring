@@ -55,7 +55,8 @@ class FolderMonitor(FileSystemEventHandler):
                 self.proggress_row_data(row)
 
         missing_file.close()
-        slack_message = f"Done prossesing - {file_name} that contains {meet_requirments_samples + missing_samples} samples.\nThere is {meet_requirments_samples} new samples that meets the requirments.\n There is {missing_samples} samples that don't meet the requirements."
+        slack_message = f"Finished processing {file_name}: {meet_requirments_samples + missing_samples}  samples listed.\nThere are {meet_requirments_samples} new samples with metadata that meets the requirements.\nThere is {missing_samples} samples with metadata that does not meet the requirements."
+        print(slack_message)
         self.send_slack_message(slack_message)
     
     def proggress_row_data (self, row):
@@ -67,7 +68,7 @@ class FolderMonitor(FileSystemEventHandler):
         dob = row['Date of Birth (YYYY-MM-DD)']
 
     def send_slack_message(self, message):
-        webhook_url = 'https://hooks.slack.com/services/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'
+        webhook_url = 'https://hooks.slack.com/services/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'
         payload = {
             "text": message
         }
