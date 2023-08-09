@@ -1,14 +1,14 @@
-from flask import Flask, request
 import dropbox
 import time
 import os
+import warnings
 from dropbox.exceptions import AuthError
 from FolderMonitor import FolderMonitor
 from watchdog.observers import Observer
 
+warnings.simplefilter("ignore")
 DROPBOX_ACCESS_TOKEN = 'sl.BjVwAHFObFMvO3DDcUQNNAk8FUJaPYEDcdzgBLAQ8fUT7KBD9BKjlg-7IDi8FW6UA0KUMY6sR7D2pZ0E8xmbmZeNr1Ixp3i2ZZA0sLZ3vvLQSOiTfY7PM8wB3EvgRui6pzeHfBam7qrSXYlUAj4J'
-PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\Test\sample.xlsx'
-MONITOR_FOLDER_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\Test'
+MONITOR_FOLDER_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\sequencing'
 dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 
