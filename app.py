@@ -30,6 +30,8 @@ def monitor_folder(path):
 
             for src_path in new_subjects_copy:
                 event_handler.check_subject_metadata(src_path)
+            
+            event_handler.end_of_day_summery()
 
     except KeyboardInterrupt:
         observer.stop()
