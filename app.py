@@ -21,7 +21,7 @@ def monitor_folder(path):
 
     try:
         while True:
-            time.sleep(15)
+            time.sleep(10)
             with lock:
                 len = event_handler.number_of_new_subjects
                 event_handler.number_of_new_subjects = 0
@@ -29,7 +29,7 @@ def monitor_folder(path):
                 event_handler.new_subjects.clear()
 
             for src_path in new_subjects_copy:
-                event_handler.check_subject_metadata(src_path)
+                event_handler.check_new_subject(src_path)
             
             event_handler.end_of_day_summery()
 
