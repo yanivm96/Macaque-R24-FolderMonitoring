@@ -12,20 +12,27 @@ from watchdog.events import FileSystemEventHandler
 import threading 
 from tabulate import tabulate
 from datetime import datetime
-import csv
+from openpyxl import load_workbook
 
-METADATA_SCHEMA_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\jsonFormats\schema.json'
-METADATA_FILE_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\subject_metadata\sample.xlsx'
-AIRR_SCHEMA_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\jsonFormats\airr-schema.json'
-GENOMIC_SCHEMA_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\jsonFormats\genomic-schema.json'
-Excel_FILE_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\results\missing.xlsx'
-WEBHOOK_URL = 'https://hooks.slack.com/services/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'
+
+
+SOURCE_PATH = "/home/bcrlab/malachy7"
+METADATA_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/schema.json'
+METADATA_FILE_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/subject_metadata/sample.xlsx'
+AIRR_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/airr-schema.json'
+GENOMIC_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/genomic-schema.json'
+EXCEL_FILE_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/results/missing.xlsx'
+WEBHOOK_URL = ''
 NOT_FOUND = -1
+
 class FolderMonitor(FileSystemEventHandler):
     def __init__(self, lock):
         self.new_subjects = []
         self.number_of_new_subjects = 0
         self.lock = lock
+        self.total_subjects = 0
+        self.total_subjects_with_airr_sample = 0
+        self.total_subjects_with_genomic_sample = 0
         self.total_subjects = 0
         self.total_samples_airr = 0
         self.total_samples_genomic = 0
@@ -35,29 +42,22 @@ class FolderMonitor(FileSystemEventHandler):
         self.genomic_missing_files = 0
         self.subjects_missing_metadata = 0
         self.isAirr = False
+        self.add_one_for_airr = False
+        self.add_one_for_genomic = False
+
     
     def reset_counters_values(self):
         self.air_samples_from_past_24 = 0
         self.genomic_samples_from_past_24 = 0
 
-    def on_created(self, event):
-        self.lock.acquire()
-        time.sleep(1)
-        self.new_subjects.append(event.src_path)
-        self.number_of_new_subjects+=1
-        print(f"New file added: {event.src_path}")
-        self.total_subjects+=1
-        self.lock.release()
-    
     def get_file_name_from_file_path(self, file_path):
-        parts = file_path.split("\\")
+        parts = file_path.split("/")
         last_part = parts[-1]
         return last_part
     
     def get_folders_in_path(self, target_path):
         folders = []
         items = os.listdir(target_path)
-
         for item in items:
             item_path = os.path.join(target_path, item)
             if os.path.isdir(item_path):
@@ -67,18 +67,20 @@ class FolderMonitor(FileSystemEventHandler):
 
 
     def check_new_subject(self, subject_path):
-        # try:
-        subject_name = self.get_file_name_from_file_path(subject_path)
-
-        with open(METADATA_SCHEMA_PATH, 'r') as schema_file:
-            schema = json.load(schema_file)
-            required_properties = schema['required']
-            data = pd.read_excel(METADATA_FILE_PATH)
-            result = self.scan_subject_files(subject_path)
-            row_number, missing_properties = self.scan_subject_metadata(data, required_properties, subject_name)
-            self.analyze_checks_result(row_number, missing_properties, result,subject_name)
-        # except Exception as e:
-        #     print("error - ", e)
+        try:
+            self.add_one_for_airr = False
+            self.add_one_for_genomic = False
+            subject_name = self.get_file_name_from_file_path(subject_path)
+            
+            with open(METADATA_SCHEMA_PATH, 'r') as schema_file:
+                schema = json.load(schema_file)
+                required_properties = schema['required']
+                data = pd.read_excel(METADATA_FILE_PATH)
+                result = self.scan_subject_files(subject_path)
+                row_number, missing_properties = self.scan_subject_metadata(data, required_properties, subject_name)
+                self.analyze_checks_result(row_number, missing_properties, result,subject_name)
+        except Exception as e:
+            print("error - ", e)
 
         
     
@@ -97,8 +99,15 @@ class FolderMonitor(FileSystemEventHandler):
             }
 
             df = pd.DataFrame(data)
-            with pd.ExcelWriter(Excel_FILE_PATH, engine='openpyxl', mode='a',if_sheet_exists="overlay") as writer:
-                df.to_excel(writer, sheet_name="Sheet1",header=None, startrow=writer.sheets["Sheet1"].max_row,index=False)
+            wb = load_workbook(EXCEL_FILE_PATH)
+            sheet_name = "Sheet1"
+            ws = wb[sheet_name]
+            start_row = ws.max_row + 1
+            data = df.values.tolist()
+            for row in data:
+                ws.append(row)
+            wb.save(EXCEL_FILE_PATH)
+            wb.close()
 
     def split_result_to_airr_and_genomic(self, result):
         airr_lines = ""
@@ -157,10 +166,16 @@ class FolderMonitor(FileSystemEventHandler):
             sample_folders = self.get_folders_in_path(sample)
             for folder in sample_folders:
                 if "airr" in self.get_file_name_from_file_path(folder):
+                    if not self.add_one_for_airr:
+                        self.total_subjects_with_airr_sample +=1
+                        self.add_one_for_airr = True
                     self.air_samples_from_past_24+=1
                     self.isAirr = True
                     schema = airr_schema
                 else:
+                    if not self.add_one_for_genomic:
+                        self.total_subjects_with_genomic_sample +=1
+                        self.add_one_for_genomic = True
                     self.genomic_samples_from_past_24+=1
                     self.isAirr = False
                     schema = genomic_schema
@@ -221,14 +236,14 @@ class FolderMonitor(FileSystemEventHandler):
 
         table1 = [
             [f"{today}", f"AIRR-Seq", f"Genomic"],
+            ["Total Subjects", f"{self.total_subjects_with_airr_sample}", f"{self.total_subjects_with_genomic_sample}"],
             ["Total Samples", f"{self.total_samples_airr}", f"{self.total_samples_genomic}"],
             ["Samples added in past 24 hours", f"{self.air_samples_from_past_24}", f"{self.genomic_samples_from_past_24}"],
             ["Samples missing files", f"{self.airr_missing_files}", f"{self.genomic_missing_files}"]
         ]
 
         table2 = [
-            [f"{today}", f"AIRR-Seq", f"Genomic"],
-            ["Total Subjects", f"{self.total_subjects}"],
+            [f"{today}", f""],
             ["Subjects missing metadata", f"{self.subjects_missing_metadata}"]
         ]
 

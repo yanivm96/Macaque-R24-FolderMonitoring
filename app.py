@@ -6,38 +6,76 @@ from dropbox.exceptions import AuthError
 from FolderMonitor import FolderMonitor
 from watchdog.observers import Observer
 import threading 
+import asyncio
+
 
 warnings.simplefilter("ignore")
-DROPBOX_ACCESS_TOKEN = 'sl.BjVwAHFObFMvO3DDcUQNNAk8FUJaPYEDcdzgBLAQ8fUT7KBD9BKjlg-7IDi8FW6UA0KUMY6sR7D2pZ0E8xmbmZeNr1Ixp3i2ZZA0sLZ3vvLQSOiTfY7PM8wB3EvgRui6pzeHfBam7qrSXYlUAj4J'
-MONITOR_FOLDER_PATH = r'C:\Users\yaniv\Dropbox\Apps\yanivmalach\Macaque R24\sequencing'
+DROPBOX_ACCESS_TOKEN = ''
+FOLDER_FOR_DOWNLOADS = r"/home/bcrlab/malachy7/Dropbox/Macaque R24/sequencing/"
+SOURCE_PATH = r"/home/bcrlab/malachy7"
+
 dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 lock = threading.Lock()
 
-def monitor_folder(path):
-    event_handler = FolderMonitor(lock)
-    observer = Observer()
-    observer.schedule(event_handler, path, recursive=False)
-    observer.start()
 
+def download_entry(dbx, entry, local_path):
     try:
-        while True:
-            time.sleep(10)
-            with lock:
-                len = event_handler.number_of_new_subjects
-                event_handler.number_of_new_subjects = 0
-                new_subjects_copy = event_handler.new_subjects[:]  # Copy the list
-                event_handler.new_subjects.clear()
-
-            for src_path in new_subjects_copy:
-                event_handler.check_new_subject(src_path)
+        if isinstance(entry, dropbox.files.FileMetadata):
+            with open(local_path, 'wb') as f:
+                metadata, res = dbx.files_download(entry.path_display)
+                f.write(res.content)
+        elif isinstance(entry, dropbox.files.FolderMetadata):
+            # For folders, create a corresponding local folder
+            os.makedirs(local_path, exist_ok=True)
+            # Download the contents of the folder recursively
+            download_folder_contents(dbx, entry.path_display, local_path)
             
-            event_handler.end_of_day_summery()
+    except dropbox.exceptions.HttpError as e:
+        print(f"Error downloading {entry.path_display}: {e}")
 
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+def download_folder_contents(dbx, folder_path, local_path):
+    # List the contents of the folder
+    result = dbx.files_list_folder(folder_path)
+    for entry in result.entries:
+        entry_local_path = os.path.join(local_path, entry.name)
+        download_entry(dbx, entry, entry_local_path)
+
+def monitor_dropbox_folder():
+    event_handler = FolderMonitor(lock)
+    new_subjects = []
+    dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+    folder_path = '/macaque r24/sequencing'.lower()
+    cursor = None
+    number_of_files = 0
+    while True:
+        if cursor is None:
+            # Initial listing
+            result = dbx.files_list_folder(folder_path)
+        else:
+            # Continue listing using cursor
+            result = dbx.files_list_folder_continue(cursor)
+        try:
+            if result.entries != []:
+                for entry in result.entries:
+                    file_path = entry.path_display
+                    local_path = os.path.join(FOLDER_FOR_DOWNLOADS, entry.name)
+                    print(f"Starting to download {file_path}")
+                    download_entry(dbx, entry, local_path)
+                    print(f"Finished download {file_path}")
+                    new_subjects.append((SOURCE_PATH + file_path))
+
+                print("success to download all files")
+                for subject_path in new_subjects:
+                    event_handler.check_new_subject(subject_path)
+
+                new_subjects.clear()
+            event_handler.end_of_day_summery()
+        except Exception as e:
+                print(e)
+        
+        cursor = result.cursor
+        time.sleep(30)# Sleep for a while before checking again
+
 
 if __name__ == "__main__":
-    folder_path = MONITOR_FOLDER_PATH
-    monitor_folder(folder_path)
-
+    monitor_dropbox_folder()
