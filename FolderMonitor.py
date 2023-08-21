@@ -22,7 +22,7 @@ METADATA_FILE_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/subject_metadata
 AIRR_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/airr-schema.json'
 GENOMIC_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/genomic-schema.json'
 EXCEL_FILE_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/results/missing.xlsx'
-WEBHOOK_URL = ''
+WEBHOOK_URL = 'https://hooks.slack.com/services/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'
 NOT_FOUND = -1
 
 class FolderMonitor(FileSystemEventHandler):
@@ -88,7 +88,6 @@ class FolderMonitor(FileSystemEventHandler):
         row_message = metadata_message = missing_files_message = ''
         missing_airr_files, missing_genomic_files = self.split_result_to_airr_and_genomic(result)
         row_message, metadata_message = self.analyze_metadata_check_results(row_number, missing_properties,metadata_message)
-
         if "Not found" in row_message or metadata_message or missing_airr_files or missing_genomic_files:
             data = {
                 'Subject Name': [subject_name],
@@ -112,7 +111,6 @@ class FolderMonitor(FileSystemEventHandler):
     def split_result_to_airr_and_genomic(self, result):
         airr_lines = ""
         genomic_lines = ""
-
         for line in result:
             if 'airr' in line.lower():
                 airr_lines += line + "\n"
@@ -145,7 +143,7 @@ class FolderMonitor(FileSystemEventHandler):
         row_number = -1
         for index, row in data.iterrows(): # Iterate through rows and write missing properties to the file
             if row['Animal ID'] == subject_name:
-                row_number = index
+                row_number = index +2
                 for req in required_properties:
                     if pd.isna(data[req][index]): #checking if cell is empty
                         missing_properties +=  req + ', '
@@ -203,7 +201,6 @@ class FolderMonitor(FileSystemEventHandler):
             sample_name = self.get_file_name_from_file_path(sample)
             folder_name = self.get_file_name_from_file_path(folder)
             folder_short_name = f"{subject_name}/{sample_name}/{folder_name}"
-            
             if actual_count < expected_count:
                 missing_files +=f"{folder_short_name}: Expected {expected_count} file of type **{required_file}**, found only {actual_count}\n"
 
