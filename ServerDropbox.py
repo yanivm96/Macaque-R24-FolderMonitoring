@@ -7,9 +7,9 @@ import os
 class ServerDropbox():
     def __init__(self):
         self.DROPBOX_ACCESS_TOKEN = None
-        self.REFRESH_TOKEN = 'bOpeFjO8IGgAAAAAAAAAAbdQaj4gdE2hyz2jTLGJbBYJHI_4v_GIAjG3dmZ0Kop2'
-        self.APP_KEY = '99yoky4k63l8zda'
-        self.APP_SECRET = '38vidxiyw9msfe8'
+        self.REFRESH_TOKEN = ''
+        self.APP_KEY = ''
+        self.APP_SECRET = ''
         self.connected_dropbox = None
 
     
