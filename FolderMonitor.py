@@ -16,20 +16,19 @@ from openpyxl import load_workbook
 
 
 
-SOURCE_PATH = "/home/bcrlab/malachy7"
-METADATA_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/schema.json'
-METADATA_FILE_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/subject_metadata/sample.xlsx'
-AIRR_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/airr-schema.json'
-GENOMIC_SCHEMA_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/jsonFormats/genomic-schema.json'
-EXCEL_FILE_PATH = '/home/bcrlab/malachy7/Dropbox/Macaque R24/results/missing.xlsx'
-WEBHOOK_URL = 'https://hooks.slack.com/services/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'
+SOURCE_PATH = "/work/jenkins"
+METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/schema.json')
+METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/sample.xlsx')
+AIRR_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/airr-schema.json')
+GENOMIC_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/genomic-schema.json')
+EXCEL_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/results/missing.xlsx')
+WEBHOOK_URL = 'https://hooks.slack.com/services/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'
 NOT_FOUND = -1
 
 class FolderMonitor(FileSystemEventHandler):
-    def __init__(self, lock):
+    def __init__(self):
         self.new_subjects = []
         self.number_of_new_subjects = 0
-        self.lock = lock
         self.total_subjects = 0
         self.total_subjects_with_airr_sample = 0
         self.total_subjects_with_genomic_sample = 0
@@ -44,7 +43,33 @@ class FolderMonitor(FileSystemEventHandler):
         self.isAirr = False
         self.add_one_for_airr = False
         self.add_one_for_genomic = False
+        self.load_counters_values()
 
+    def load_counters_values(self):
+        if os.path.exists("counters.json"):
+            with open("counters.json", "r") as file:
+                data = json.load(file)
+                self.total_subjects_with_airr_sample = data.get("total_subjects_with_airr_sample", 0)
+                self.total_subjects_with_genomic_sample = data.get("total_subjects_with_genomic_sample", 0)
+                self.total_samples_airr = data.get("total_samples_airr", 0)
+                self.total_samples_genomic = data.get("total_samples_genomic", 0)
+                self.airr_missing_files = data.get("airr_missing_files", 0)
+                self.genomic_missing_files = data.get("genomic_missing_files", 0)
+                self.subjects_missing_metadata = data.get("subjects_missing_metadata", 0)
+
+
+    def save_counters_values(self):
+        data = {
+            "total_subjects_with_airr_sample": self.total_subjects_with_airr_sample,
+            "total_subjects_with_genomic_sample": self.total_subjects_with_genomic_sample,
+            "total_samples_airr": self.total_samples_airr,
+            "total_samples_genomic": self.total_samples_genomic,
+            "airr_missing_files": self.airr_missing_files,
+            "genomic_missing_files": self.genomic_missing_files,
+            "subjects_missing_metadata": self.subjects_missing_metadata
+        }
+        with open("counters.json", "w") as file:
+            json.dump(data, file)
     
     def reset_counters_values(self):
         self.air_samples_from_past_24 = 0
@@ -216,16 +241,16 @@ class FolderMonitor(FileSystemEventHandler):
         return missing_files
 
 
-    def end_of_day_summery(self):
-        with self.lock:
-            self.total_samples_airr +=  self.air_samples_from_past_24
-            self.total_samples_genomic +=  self.genomic_samples_from_past_24
-            table_data1, table_data2 = self.create_slack_table()
-            table1 = tabulate(table_data1, tablefmt="fancy_grid")
-            table2 = tabulate(table_data2, tablefmt="fancy_grid")
-            self.send_slack_message("```\n" + table1 + "\n```")
-            self.send_slack_message("```\n" + table2 + "\n```")
-            self.reset_counters_values()
+    def end_of_day_summary(self):
+        self.total_samples_airr +=  self.air_samples_from_past_24
+        self.total_samples_genomic +=  self.genomic_samples_from_past_24
+        table_data1, table_data2 = self.create_slack_table()
+        table1 = tabulate(table_data1, tablefmt="fancy_grid")
+        table2 = tabulate(table_data2, tablefmt="fancy_grid")
+        self.send_slack_message("```\n" + table1 + "\n```")
+        self.send_slack_message("```\n" + table2 + "\n```")
+        self.save_counters_values()
+        self.reset_counters_values()
 
 
     def create_slack_table(self):
