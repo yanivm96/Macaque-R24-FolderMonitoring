@@ -8,11 +8,14 @@ from ServerDropbox import ServerDropbox
 from watchdog.observers import Observer
 
 warnings.simplefilter("ignore")
-FOLDER_FOR_DOWNLOADS = r"/work/jenkins/Dropbox/Macaque R24/sequencing/"
-DROPBOX_FOLDER_PATH = folder_path = '/macaque r24/sequencing'.lower()
-SOURCE_PATH = r"/work/jenkins/Dropbox"
 CURSOR_FILE_PATH = "cursor.json"  # Path to the file storing the cursor
+#FOLDER_FOR_DOWNLOADS = r"/work/jenkins/Dropbox/Macaque R24/sequencing/"
+#DROPBOX_FOLDER_PATH = folder_path = '/macaque r24/sequencing'.lower()
+#SOURCE_PATH = r"/work/jenkins/Dropbox"
 
+FOLDER_FOR_DOWNLOADS = r"C:\Users\yaniv\Desktop\Dropbox\Macaque R24\sequencing"
+DROPBOX_FOLDER_PATH = folder_path = '/macaque r24/sequencing'.lower()
+SOURCE_PATH = r"C:\Users\yaniv\Desktop\Dropbox"
 
 def load_cursor(): #load dropbox last state
     if os.path.exists(CURSOR_FILE_PATH):
@@ -60,6 +63,7 @@ def start_new_check(server_dropbox, cursor, folder_monitor):
         else:
             print("No new data from past day")
         folder_monitor.end_of_day_summary()
+        folder_monitor.update_pipeline_table()
 
     except Exception as e:
         print(e)

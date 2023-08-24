@@ -2,15 +2,20 @@ import requests
 import dropbox
 from dropbox.exceptions import AuthError
 import os
+import json
 
 
 class ServerDropbox():
     def __init__(self):
+        with open("secrets.json", "r") as json_file: # Read the secrets from the JSON file
+            details = json.load(json_file)
         self.DROPBOX_ACCESS_TOKEN = None
-        self.REFRESH_TOKEN = ''
-        self.APP_KEY = ''
-        self.APP_SECRET = ''
+        self.REFRESH_TOKEN = details["REFRESH_TOKEN"]
+        self.APP_KEY = details["APP_KEY"]
+        self.APP_SECRET = details["APP_SECRET"]
         self.connected_dropbox = None
+        
+
 
     
     def refresh_access_token(self):

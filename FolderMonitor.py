@@ -1,29 +1,34 @@
 from watchdog.events import FileSystemEventHandler
 import pandas as pd
-import jsonschema
 import json
 import os
+import gzip
+import shutil
 import re
+import pickle
 import requests
-import time
-import argparse
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import threading 
 from tabulate import tabulate
 from datetime import datetime
 from openpyxl import load_workbook
 
 
 
-SOURCE_PATH = "/work/jenkins"
+SOURCE_PATH = r"/work/jenkins"
 METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/schema.json')
 METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/sample.xlsx')
 AIRR_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/airr-schema.json')
 GENOMIC_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/genomic-schema.json')
+FILE_TO_RUN_IN_PIPELINE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/sequencing/') 
+PIPELINE_TABLE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/analysis/') 
 EXCEL_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/results/missing.xlsx')
-WEBHOOK_URL = 'https://hooks.slack.com/services/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'
+WEBHOOK_URL = ''
 NOT_FOUND = -1
+
+with open("secrets.json", "r") as json_file: # Read the secrets from the JSON file
+    details = json.load(json_file)
+    WEBHOOK_URL = details["WEBHOOK_URL"]
 
 class FolderMonitor(FileSystemEventHandler):
     def __init__(self):
@@ -44,6 +49,7 @@ class FolderMonitor(FileSystemEventHandler):
         self.add_one_for_airr = False
         self.add_one_for_genomic = False
         self.load_counters_values()
+
 
     def load_counters_values(self):
         if os.path.exists("counters.json"):
@@ -213,7 +219,7 @@ class FolderMonitor(FileSystemEventHandler):
     def check_if_folder_meets_files_required(self, schema, folder, subject_path, sample):
         missing_files = ''
         required_files = schema["items"]['required']
-
+        pipeline_files_names= []
         for required_file in required_files:
             actual_count = 0
             expected_count = schema["items"]["properties"][required_file + "_count"]["minimum"]
@@ -221,13 +227,20 @@ class FolderMonitor(FileSystemEventHandler):
                 pattern = schema["items"]["properties"][required_file].get("pattern")
                 if pattern and re.match(pattern, filename):
                     actual_count += 1
+                    pipeline_files_names.append(filename)
             
             subject_name = self.get_file_name_from_file_path(subject_path)
             sample_name = self.get_file_name_from_file_path(sample)
             folder_name = self.get_file_name_from_file_path(folder)
             folder_short_name = f"{subject_name}/{sample_name}/{folder_name}"
+
             if actual_count < expected_count:
                 missing_files +=f"{folder_short_name}: Expected {expected_count} file of type **{required_file}**, found only {actual_count}\n"
+
+            elif expected_count != 0:
+                self.manage_folder_files(folder, pipeline_files_names)
+
+            pipeline_files_names.clear()
 
         if missing_files.endswith('\n'): #removing the lask \n 
             missing_files = missing_files[:-1]
@@ -240,6 +253,54 @@ class FolderMonitor(FileSystemEventHandler):
 
         return missing_files
 
+    def manage_folder_files(self, folder, pipeline_files_names): #if the folder meets the parameters, we want to unzip the file and make them ready for pipeline
+        pipeline_files = FILE_TO_RUN_IN_PIPELINE_PATH + "pipeline_files.txt"
+        with open(pipeline_files, "a") as file:
+            for file_name in pipeline_files_names:
+                line_in_pipeline_file, is_zipped = self.unzip_gz_file(folder, file_name)
+                if is_zipped:
+                    os.remove(os.path.join(folder,file_name)) #removing the zip file after unzip it
+                else:
+                    pattern = r'(.+)_(\d+)_(.+)\.fastq'
+                    new_filename = self.process_filename(file_name, pattern)
+                    line_in_pipeline_file = os.path.join(folder,new_filename)
+                    os.rename(os.path.join(folder,file_name), line_in_pipeline_file)
+                file.write(line_in_pipeline_file + "\n")
+
+
+
+    def unzip_gz_file(self,folder, gzipped_file_path):
+        print(gzipped_file_path)
+        if not gzipped_file_path.endswith('.gz'):
+            print("The file is not in .gz format.")
+            return gzipped_file_path, False
+        
+        # Extract relevant parts from the filename using regular expressions
+        pattern = r'(.+)_(\d+)_(.+)\.fastq\.gz'
+        new_filename = self.process_filename(gzipped_file_path, pattern)
+
+        # Path to the output file
+        output_file_path = os.path.join(folder, new_filename)
+        gzipped_file_path = os.path.join(folder,gzipped_file_path)
+        # Open the .gz file and extract its contents
+        with gzip.open(gzipped_file_path, 'rb') as gzipped_file:
+            with open(output_file_path, 'wb') as output_file:
+                shutil.copyfileobj(gzipped_file, output_file)
+                return output_file_path, True  
+    
+    def process_filename(self, filename, pattern): # chainging the fastq file name to our needs 
+        match = re.match(pattern, filename)
+        
+        if not match:
+            print("Filename does not match the expected pattern.")
+            return None
+        
+        original_file_name, number, rest_of_filename = match.groups()
+        
+        # Create the new filename with 'R' before the number
+        new_filename = f"{original_file_name}.R{number}.{rest_of_filename}.fastq"
+        
+        return new_filename
 
     def end_of_day_summary(self):
         self.total_samples_airr +=  self.air_samples_from_past_24
@@ -276,3 +337,34 @@ class FolderMonitor(FileSystemEventHandler):
             "text": message
         }
         response = requests.post(WEBHOOK_URL, json=payload)
+
+
+    def update_pipeline_table(self):
+        columns = ["file path", "ran in pipeline"]
+        data_file = os.path.join(PIPELINE_TABLE_PATH, "pipeline_table.xlsx")
+        if os.path.exists(data_file):
+            table_data = pd.read_excel(data_file)
+        else:
+            table_data = pd.DataFrame(columns=columns)
+            
+        pipeline_file_path = FILE_TO_RUN_IN_PIPELINE_PATH + "pipeline_files.txt"
+        with open(pipeline_file_path, "r") as pipeline_file:
+            paths = pipeline_file.read().splitlines()
+
+        path_prefixes = {}
+        for object_name in paths:
+            path_prefix = os.path.dirname(object_name)
+            if path_prefix in path_prefixes:
+                path_prefixes[path_prefix].append(object_name)
+            else:
+                path_prefixes[path_prefix] = [object_name]
+
+        new_rows = []
+        for path_prefix, paths in path_prefixes.items():
+            new_row = {"file path": path_prefix, "ran in pipeline": False}
+            new_rows.append(new_row)
+        
+        new_data = pd.DataFrame(new_rows)
+        table_data = pd.concat([table_data, new_data], ignore_index=True)
+        
+        table_data.to_excel(data_file, index=False)  # Save the DataFrame to an Excel file
