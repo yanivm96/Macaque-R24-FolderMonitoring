@@ -51,7 +51,7 @@ class FolderMonitor(FileSystemEventHandler):
         self.load_counters_values()
 
 
-    def load_counters_values(self):
+    def load_counters_values(self): #loading the updated values of samples counters from the json file
         if os.path.exists("counters.json"):
             with open("counters.json", "r") as file:
                 data = json.load(file)
@@ -64,7 +64,7 @@ class FolderMonitor(FileSystemEventHandler):
                 self.subjects_missing_metadata = data.get("subjects_missing_metadata", 0)
 
 
-    def save_counters_values(self):
+    def save_counters_values(self): #saving samples counters after a run
         data = {
             "total_subjects_with_airr_sample": self.total_subjects_with_airr_sample,
             "total_subjects_with_genomic_sample": self.total_subjects_with_genomic_sample,
@@ -81,12 +81,12 @@ class FolderMonitor(FileSystemEventHandler):
         self.air_samples_from_past_24 = 0
         self.genomic_samples_from_past_24 = 0
 
-    def get_file_name_from_file_path(self, file_path):
+    def get_file_name_from_file_path(self, file_path): #getting the file name from a path
         parts = file_path.split("/")
         last_part = parts[-1]
         return last_part
     
-    def get_folders_in_path(self, target_path):
+    def get_folders_in_path(self, target_path):#getting all folders from a path
         folders = []
         items = os.listdir(target_path)
         for item in items:
@@ -97,7 +97,7 @@ class FolderMonitor(FileSystemEventHandler):
         return folders
 
 
-    def check_new_subject(self, subject_path):
+    def check_new_subject(self, subject_path):#the stating function of checking files and metadata
         try:
             self.add_one_for_airr = False
             self.add_one_for_genomic = False
@@ -169,7 +169,7 @@ class FolderMonitor(FileSystemEventHandler):
 
         return row_message, metadata_message     
 
-    def scan_subject_metadata(self, data, required_properties, subject_name):
+    def scan_subject_metadata(self, data, required_properties, subject_name):#checking subject metadata
         missing_properties = ''
         row_number = -1
         for index, row in data.iterrows(): # Iterate through rows and write missing properties to the file
@@ -216,7 +216,7 @@ class FolderMonitor(FileSystemEventHandler):
         
         return missing
 
-    def check_if_folder_meets_files_required(self, schema, folder, subject_path, sample):
+    def check_if_folder_meets_files_required(self, schema, folder, subject_path, sample):#checking folder files and checking if it fits to our json requerments, and returning the missings
         missing_files = ''
         required_files = schema["items"]['required']
         pipeline_files_names= []
@@ -269,7 +269,7 @@ class FolderMonitor(FileSystemEventHandler):
 
 
 
-    def unzip_gz_file(self,folder, gzipped_file_path):
+    def unzip_gz_file(self,folder, gzipped_file_path):#unzipping the fastq files and chaning there name to our concept
         print(gzipped_file_path)
         if not gzipped_file_path.endswith('.gz'):
             print("The file is not in .gz format.")
@@ -339,7 +339,7 @@ class FolderMonitor(FileSystemEventHandler):
         response = requests.post(WEBHOOK_URL, json=payload)
 
 
-    def update_pipeline_table(self):
+    def update_pipeline_table(self):#updetting the excel file for new subject and samples files
         columns = ["file path", "ran in pipeline"]
         data_file = os.path.join(PIPELINE_TABLE_PATH, "pipeline_table.xlsx")
         if os.path.exists(data_file):
