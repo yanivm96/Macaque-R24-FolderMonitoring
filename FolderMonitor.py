@@ -30,7 +30,7 @@ with open("secrets.json", "r") as json_file: # Read the secrets from the JSON fi
     details = json.load(json_file)
     WEBHOOK_URL = details["WEBHOOK_URL"]
 
-class FolderMonitor(FileSystemEventHandler):
+class FolderMonitor():
     def __init__(self):
         self.new_subjects = []
         self.number_of_new_subjects = 0

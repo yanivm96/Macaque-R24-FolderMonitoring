@@ -31,7 +31,7 @@ class ServerDropbox():
         if response.status_code == 200:
             token_data = response.json()
             self.DROPBOX_ACCESS_TOKEN = token_data['access_token']
-            self.REFRESH_TOCKEN = token_data.get('refresh_token', self.REFRESH_TOKEN)
+            self.REFRESH_TOKEN = token_data.get('refresh_token', self.REFRESH_TOKEN)
             
         else:
             raise Exception("Failed to refresh access token")
