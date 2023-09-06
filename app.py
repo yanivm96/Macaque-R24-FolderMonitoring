@@ -9,13 +9,13 @@ from watchdog.observers import Observer
 
 # Ignore warnings
 warnings.simplefilter("ignore")
+CURSOR_FILE_PATH = "cursor.json"
 
 # Define the file paths and Dropbox-related settings
-CURSOR_FILE_PATH = "cursor.json"
-#SOURCE_PATH = r"C:\Users\yaniv\Desktop\Dropbox"
-SOURCE_PATH = r"/work/jenkins"
-FOLDER_FOR_DOWNLOADS = os.path.join(SOURCE_PATH, r"/Macaque R24/sequencing/")
-DROPBOX_FOLDER_PATH = folder_path = '/macaque r24/sequencing'.lower() #where the folder you want to monitor lacated in dropbox
+#SOURCE_PATH = r"C:\Users\yaniv\Desktop\Dropbox" # this is for testing
+SOURCE_PATH = r"/work/jenkins/Dropbox"
+FOLDER_FOR_DOWNLOADS = os.path.join(SOURCE_PATH, "Macaque R24/sequencing/")
+DROPBOX_FOLDER_PATH = '/macaque r24/sequencing'.lower() #where the folder you want to monitor lacated in dropbox
 
 # Function to load the last cursor state from a file
 def load_cursor():
