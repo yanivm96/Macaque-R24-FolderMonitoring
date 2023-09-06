@@ -14,8 +14,6 @@ class ServerDropbox():
         self.APP_KEY = details["APP_KEY"]
         self.APP_SECRET = details["APP_SECRET"]
         self.connected_dropbox = None
-        
-
 
     
     def refresh_access_token(self):

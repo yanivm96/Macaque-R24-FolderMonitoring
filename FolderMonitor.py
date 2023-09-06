@@ -1,14 +1,10 @@
-from watchdog.events import FileSystemEventHandler
 import pandas as pd
 import json
 import os
 import gzip
 import shutil
 import re
-import pickle
 import requests
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 from tabulate import tabulate
 from datetime import datetime
 from openpyxl import load_workbook
@@ -16,8 +12,10 @@ from openpyxl import load_workbook
 
 
 SOURCE_PATH = r"/work/jenkins"
-METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/schema.json')
-METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/sample.xlsx')
+#SOURCE_PATH = r"C:\Users\yaniv\Desktop"
+
+METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/config.json')
+METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/metadata.xlsx')
 AIRR_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/airr-schema.json')
 GENOMIC_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/genomic-schema.json')
 FILE_TO_RUN_IN_PIPELINE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/sequencing/') 
@@ -257,50 +255,50 @@ class FolderMonitor():
         pipeline_files = FILE_TO_RUN_IN_PIPELINE_PATH + "pipeline_files.txt"
         with open(pipeline_files, "a") as file:
             for file_name in pipeline_files_names:
-                line_in_pipeline_file, is_zipped = self.unzip_gz_file(folder, file_name)
-                if is_zipped:
-                    os.remove(os.path.join(folder,file_name)) #removing the zip file after unzip it
-                else:
-                    pattern = r'(.+)_(\d+)_(.+)\.fastq'
-                    new_filename = self.process_filename(file_name, pattern)
-                    line_in_pipeline_file = os.path.join(folder,new_filename)
-                    os.rename(os.path.join(folder,file_name), line_in_pipeline_file)
+                #line_in_pipeline_file, is_zipped = self.unzip_gz_file(folder, file_name)
+                # if is_zipped:
+                #     os.remove(os.path.join(folder,file_name)) #removing the zip file after unzip it
+                # else:
+                #     pattern = r'(.+)_(\d+)_(.+)\.fastq'
+                #     new_filename = self.process_filename(file_name, pattern)
+                line_in_pipeline_file = os.path.join(folder, file_name)
+                #     os.rename(os.path.join(folder,file_name), line_in_pipeline_file)
                 file.write(line_in_pipeline_file + "\n")
 
 
 
-    def unzip_gz_file(self,folder, gzipped_file_path):#unzipping the fastq files and chaning there name to our concept
-        print(gzipped_file_path)
-        if not gzipped_file_path.endswith('.gz'):
-            print("The file is not in .gz format.")
-            return gzipped_file_path, False
+    # def unzip_gz_file(self,folder, gzipped_file_path):#unzipping the fastq files and chaning there name to our concept
+    #     print(gzipped_file_path)
+    #     if not gzipped_file_path.endswith('.gz'):
+    #         print("The file is not in .gz format.")
+    #         return gzipped_file_path, False
         
-        # Extract relevant parts from the filename using regular expressions
-        pattern = r'(.+)_(\d+)_(.+)\.fastq\.gz'
-        new_filename = self.process_filename(gzipped_file_path, pattern)
+    #     # Extract relevant parts from the filename using regular expressions
+    #     pattern = r'(.+)_(\d+)_(.+)\.fastq\.gz'
+    #     new_filename = self.process_filename(gzipped_file_path, pattern)
 
-        # Path to the output file
-        output_file_path = os.path.join(folder, new_filename)
-        gzipped_file_path = os.path.join(folder,gzipped_file_path)
-        # Open the .gz file and extract its contents
-        with gzip.open(gzipped_file_path, 'rb') as gzipped_file:
-            with open(output_file_path, 'wb') as output_file:
-                shutil.copyfileobj(gzipped_file, output_file)
-                return output_file_path, True  
+    #     # Path to the output file
+    #     output_file_path = os.path.join(folder, new_filename)
+    #     gzipped_file_path = os.path.join(folder,gzipped_file_path)
+    #     # Open the .gz file and extract its contents
+    #     with gzip.open(gzipped_file_path, 'rb') as gzipped_file:
+    #         with open(output_file_path, 'wb') as output_file:
+    #             shutil.copyfileobj(gzipped_file, output_file)
+    #             return output_file_path, True  
     
-    def process_filename(self, filename, pattern): # chainging the fastq file name to our needs 
-        match = re.match(pattern, filename)
+    # def process_filename(self, filename, pattern): # chainging the fastq file name to our needs 
+    #     match = re.match(pattern, filename)
         
-        if not match:
-            print("Filename does not match the expected pattern.")
-            return None
+    #     if not match:
+    #         print("Filename does not match the expected pattern.")
+    #         return None
         
-        original_file_name, number, rest_of_filename = match.groups()
+    #     original_file_name, number, rest_of_filename = match.groups()
         
-        # Create the new filename with 'R' before the number
-        new_filename = f"{original_file_name}.R{number}.{rest_of_filename}.fastq"
+    #     # Create the new filename with 'R' before the number
+    #     new_filename = f"{original_file_name}.R{number}.{rest_of_filename}.fastq"
         
-        return new_filename
+    #     return new_filename
 
     def end_of_day_summary(self):
         self.total_samples_airr +=  self.air_samples_from_past_24
