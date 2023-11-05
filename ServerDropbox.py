@@ -4,6 +4,8 @@ from dropbox.exceptions import AuthError
 import os
 import json
 
+#SOURCE_PATH = r"/misc/work/jenkins"
+SOURCE_PATH = r"C:\Users\yaniv\Desktop"
 
 class ServerDropbox():
     def __init__(self):
@@ -14,6 +16,8 @@ class ServerDropbox():
         self.APP_KEY = details["APP_KEY"]
         self.APP_SECRET = details["APP_SECRET"]
         self.connected_dropbox = None
+        self.download_list = []
+        self.sample_list = []
 
     
     def refresh_access_token(self):
@@ -71,9 +75,20 @@ class ServerDropbox():
     def download_entry(self,entry, local_path):
         try:
             if isinstance(entry, dropbox.files.FileMetadata):
-                with open(local_path, 'wb') as f:
-                    metadata, res = self.connected_dropbox.files_download(entry.path_display)
-                    f.write(res.content)
+                if not os.path.exists(local_path):
+                    with open(local_path, 'wb') as folder:
+                        #download the .gz fiels
+                        metadata, res = self.connected_dropbox.files_download(entry.path_display)
+                        folder.write(res.content)
+                        path_segments = entry.path_display.split('/')
+                        subject_path = '/'.join(path_segments[:4])
+                        sample_path = '/'.join(path_segments[:6])
+
+                        self.download_list.append(subject_path)
+                        self.sample_list.append(sample_path)
+                # else:
+                #     print(f"The file {local_path} exists.")
+                        
             elif isinstance(entry, dropbox.files.FolderMetadata):
                 # For folders, create a corresponding local folder
                 os.makedirs(local_path, exist_ok=True)
@@ -90,6 +105,12 @@ class ServerDropbox():
             entry_local_path = os.path.join(local_path, entry.name)
             self.download_entry(entry, entry_local_path)
 
-
+    def update_file(self, dropbox_file_path, local_file_path): #updating the missing file on dropbox
+        try:
+            with open(local_file_path, 'rb') as missing_file:
+                self.connected_dropbox.files_upload(missing_file.read(), dropbox_file_path, mode=dropbox.files.WriteMode('overwrite'))
+            print(f"File '{dropbox_file_path}' updated successfully.")
+        except dropbox.exceptions.ApiError as e:
+            print(f"Error updating file '{dropbox_file_path}': {e}")
 
     

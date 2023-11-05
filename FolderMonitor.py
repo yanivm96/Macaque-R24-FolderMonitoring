@@ -11,10 +11,10 @@ from openpyxl import load_workbook
 
 
 
-SOURCE_PATH = r"/work/jenkins"
-#SOURCE_PATH = r"C:\Users\yaniv\Desktop"
+#SOURCE_PATH = r"/misc/work/jenkins"
+SOURCE_PATH = r"C:\Users\yaniv\Desktop"
 
-METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/config.json')
+METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/schema.json')
 METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/metadata.xlsx')
 AIRR_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/airr-schema.json')
 GENOMIC_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/genomic-schema.json')
@@ -46,7 +46,8 @@ class FolderMonitor():
         self.isAirr = False
         self.add_one_for_airr = False
         self.add_one_for_genomic = False
-        self.load_counters_values()
+        self.past_24_sample = []
+        #self.load_counters_values()
 
 
     def load_counters_values(self): #loading the updated values of samples counters from the json file
@@ -196,14 +197,14 @@ class FolderMonitor():
                     if not self.add_one_for_airr:
                         self.total_subjects_with_airr_sample +=1
                         self.add_one_for_airr = True
-                    self.air_samples_from_past_24+=1
+                    self.check_if_sample_is_from_past_day(folder)
                     self.isAirr = True
                     schema = airr_schema
                 else:
                     if not self.add_one_for_genomic:
                         self.total_subjects_with_genomic_sample +=1
                         self.add_one_for_genomic = True
-                    self.genomic_samples_from_past_24+=1
+                    self.check_if_sample_is_from_past_day(folder)
                     self.isAirr = False
                     schema = genomic_schema
 
@@ -213,6 +214,17 @@ class FolderMonitor():
                     missing.append(miss_res)
         
         return missing
+    
+    def check_if_sample_is_from_past_day(self, folder):
+        start_index = folder.find("/Macaque R24/sequencing")
+        if start_index != -1:
+            # Extract the part of the path after "Macaque R24/sequencing"
+            desired_part = folder[start_index:].replace('\\', '/')
+        
+        if desired_part in self.past_24_sample:
+            self.air_samples_from_past_24+=1
+        else:
+            self.total_samples_airr+=1
 
     def check_if_folder_meets_files_required(self, schema, folder, subject_path, sample):#checking folder files and checking if it fits to our json requerments, and returning the missings
         missing_files = ''
@@ -308,7 +320,7 @@ class FolderMonitor():
         table2 = tabulate(table_data2, tablefmt="fancy_grid")
         self.send_slack_message("```\n" + table1 + "\n```")
         self.send_slack_message("```\n" + table2 + "\n```")
-        self.save_counters_values()
+        #self.save_counters_values()
         self.reset_counters_values()
 
 
