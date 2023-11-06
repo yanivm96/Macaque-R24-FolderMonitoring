@@ -11,14 +11,15 @@ from openpyxl import load_workbook
 
 
 
-#SOURCE_PATH = r"/misc/work/jenkins"
-SOURCE_PATH = r"C:\Users\yaniv\Desktop"
+SOURCE_PATH = r"/misc/work/jenkins"
+#SOURCE_PATH = r"C:\Users\yaniv\Desktop"
 
 METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/schema.json')
 METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/metadata.xlsx')
 AIRR_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/airr-schema.json')
 GENOMIC_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/genomic-schema.json')
-FILE_TO_RUN_IN_PIPELINE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/sequencing/') 
+FILE_TO_RUN_IN_PIPELINE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/ready_for_pipline/pipeline_files.txt') 
+ALL_PIPELINE_FILES_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/ready_for_pipline/all_pipeline_files.txt') 
 PIPELINE_TABLE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/analysis/') 
 EXCEL_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/results/missing.xlsx')
 WEBHOOK_URL = ''
@@ -47,38 +48,42 @@ class FolderMonitor():
         self.add_one_for_airr = False
         self.add_one_for_genomic = False
         self.past_24_sample = []
-        #self.load_counters_values()
+        self.reset_excel_file = True
+        if not os.path.exists(ALL_PIPELINE_FILES_PATH):
+        # If the file doesn't exist, create it and write some initial content
+            with open(ALL_PIPELINE_FILES_PATH, "w") as new_file:
+                print(ALL_PIPELINE_FILES_PATH + " created")
 
 
-    def load_counters_values(self): #loading the updated values of samples counters from the json file
-        if os.path.exists("counters.json"):
-            with open("counters.json", "r") as file:
-                data = json.load(file)
-                self.total_subjects_with_airr_sample = data.get("total_subjects_with_airr_sample", 0)
-                self.total_subjects_with_genomic_sample = data.get("total_subjects_with_genomic_sample", 0)
-                self.total_samples_airr = data.get("total_samples_airr", 0)
-                self.total_samples_genomic = data.get("total_samples_genomic", 0)
-                self.airr_missing_files = data.get("airr_missing_files", 0)
-                self.genomic_missing_files = data.get("genomic_missing_files", 0)
-                self.subjects_missing_metadata = data.get("subjects_missing_metadata", 0)
+    # def load_counters_values(self): #loading the updated values of samples counters from the json file
+    #     if os.path.exists("counters.json"):
+    #         with open("counters.json", "r") as file:
+    #             data = json.load(file)
+    #             self.total_subjects_with_airr_sample = data.get("total_subjects_with_airr_sample", 0)
+    #             self.total_subjects_with_genomic_sample = data.get("total_subjects_with_genomic_sample", 0)
+    #             self.total_samples_airr = data.get("total_samples_airr", 0)
+    #             self.total_samples_genomic = data.get("total_samples_genomic", 0)
+    #             self.airr_missing_files = data.get("airr_missing_files", 0)
+    #             self.genomic_missing_files = data.get("genomic_missing_files", 0)
+    #             self.subjects_missing_metadata = data.get("subjects_missing_metadata", 0)
 
 
-    def save_counters_values(self): #saving samples counters after a run
-        data = {
-            "total_subjects_with_airr_sample": self.total_subjects_with_airr_sample,
-            "total_subjects_with_genomic_sample": self.total_subjects_with_genomic_sample,
-            "total_samples_airr": self.total_samples_airr,
-            "total_samples_genomic": self.total_samples_genomic,
-            "airr_missing_files": self.airr_missing_files,
-            "genomic_missing_files": self.genomic_missing_files,
-            "subjects_missing_metadata": self.subjects_missing_metadata
-        }
-        with open("counters.json", "w") as file:
-            json.dump(data, file)
+    # def save_counters_values(self): #saving samples counters after a run
+    #     data = {
+    #         "total_subjects_with_airr_sample": self.total_subjects_with_airr_sample,
+    #         "total_subjects_with_genomic_sample": self.total_subjects_with_genomic_sample,
+    #         "total_samples_airr": self.total_samples_airr,
+    #         "total_samples_genomic": self.total_samples_genomic,
+    #         "airr_missing_files": self.airr_missing_files,
+    #         "genomic_missing_files": self.genomic_missing_files,
+    #         "subjects_missing_metadata": self.subjects_missing_metadata
+    #     }
+    #     with open("counters.json", "w") as file:
+    #         json.dump(data, file)
     
-    def reset_counters_values(self):
-        self.air_samples_from_past_24 = 0
-        self.genomic_samples_from_past_24 = 0
+    # def reset_counters_values(self):
+    #     self.air_samples_from_past_24 = 0
+    #     self.genomic_samples_from_past_24 = 0
 
     def get_file_name_from_file_path(self, file_path): #getting the file name from a path
         parts = file_path.split("/")
@@ -131,7 +136,9 @@ class FolderMonitor():
             wb = load_workbook(EXCEL_FILE_PATH)
             sheet_name = "Sheet1"
             ws = wb[sheet_name]
-            start_row = ws.max_row + 1
+            if self.reset_excel_file:
+                self.reset_excel_file = False
+                ws.delete_rows(2, ws.max_row)
             data = df.values.tolist()
             for row in data:
                 ws.append(row)
@@ -264,53 +271,18 @@ class FolderMonitor():
         return missing_files
 
     def manage_folder_files(self, folder, pipeline_files_names): #if the folder meets the parameters, we want to unzip the file and make them ready for pipeline
-        pipeline_files = FILE_TO_RUN_IN_PIPELINE_PATH + "pipeline_files.txt"
-        with open(pipeline_files, "a") as file:
-            for file_name in pipeline_files_names:
-                #line_in_pipeline_file, is_zipped = self.unzip_gz_file(folder, file_name)
-                # if is_zipped:
-                #     os.remove(os.path.join(folder,file_name)) #removing the zip file after unzip it
-                # else:
-                #     pattern = r'(.+)_(\d+)_(.+)\.fastq'
-                #     new_filename = self.process_filename(file_name, pattern)
-                line_in_pipeline_file = os.path.join(folder, file_name)
-                #     os.rename(os.path.join(folder,file_name), line_in_pipeline_file)
-                file.write(line_in_pipeline_file + "\n")
+        with open(ALL_PIPELINE_FILES_PATH, "r") as all_pipeline_files:
+            all_lines = all_pipeline_files.readlines()
+            all_lines = [line.replace('\n', '') for line in all_lines]
 
+        with open(FILE_TO_RUN_IN_PIPELINE_PATH, "a") as ready_for_pipeline_file:
+            with open(ALL_PIPELINE_FILES_PATH, "a") as all_pipeline_files:
+                for file_name in pipeline_files_names:
+                    line_in_pipeline_file = os.path.join(folder, file_name)
+                    if line_in_pipeline_file not in all_lines:
+                        ready_for_pipeline_file.write(line_in_pipeline_file + "\n")
+                        all_pipeline_files.write(line_in_pipeline_file + "\n")
 
-
-    # def unzip_gz_file(self,folder, gzipped_file_path):#unzipping the fastq files and chaning there name to our concept
-    #     print(gzipped_file_path)
-    #     if not gzipped_file_path.endswith('.gz'):
-    #         print("The file is not in .gz format.")
-    #         return gzipped_file_path, False
-        
-    #     # Extract relevant parts from the filename using regular expressions
-    #     pattern = r'(.+)_(\d+)_(.+)\.fastq\.gz'
-    #     new_filename = self.process_filename(gzipped_file_path, pattern)
-
-    #     # Path to the output file
-    #     output_file_path = os.path.join(folder, new_filename)
-    #     gzipped_file_path = os.path.join(folder,gzipped_file_path)
-    #     # Open the .gz file and extract its contents
-    #     with gzip.open(gzipped_file_path, 'rb') as gzipped_file:
-    #         with open(output_file_path, 'wb') as output_file:
-    #             shutil.copyfileobj(gzipped_file, output_file)
-    #             return output_file_path, True  
-    
-    # def process_filename(self, filename, pattern): # chainging the fastq file name to our needs 
-    #     match = re.match(pattern, filename)
-        
-    #     if not match:
-    #         print("Filename does not match the expected pattern.")
-    #         return None
-        
-    #     original_file_name, number, rest_of_filename = match.groups()
-        
-    #     # Create the new filename with 'R' before the number
-    #     new_filename = f"{original_file_name}.R{number}.{rest_of_filename}.fastq"
-        
-    #     return new_filename
 
     def end_of_day_summary(self):
         self.total_samples_airr +=  self.air_samples_from_past_24
@@ -320,8 +292,7 @@ class FolderMonitor():
         table2 = tabulate(table_data2, tablefmt="fancy_grid")
         self.send_slack_message("```\n" + table1 + "\n```")
         self.send_slack_message("```\n" + table2 + "\n```")
-        #self.save_counters_values()
-        self.reset_counters_values()
+        
 
 
     def create_slack_table(self):
@@ -357,8 +328,7 @@ class FolderMonitor():
         else:
             table_data = pd.DataFrame(columns=columns)
             
-        pipeline_file_path = FILE_TO_RUN_IN_PIPELINE_PATH + "pipeline_files.txt"
-        with open(pipeline_file_path, "r") as pipeline_file:
+        with open(FILE_TO_RUN_IN_PIPELINE_PATH, "r") as pipeline_file:
             paths = pipeline_file.read().splitlines()
 
         path_prefixes = {}

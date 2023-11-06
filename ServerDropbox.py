@@ -4,8 +4,8 @@ from dropbox.exceptions import AuthError
 import os
 import json
 
-#SOURCE_PATH = r"/misc/work/jenkins"
-SOURCE_PATH = r"C:\Users\yaniv\Desktop"
+SOURCE_PATH = r"/misc/work/jenkins"
+#SOURCE_PATH = r"C:\Users\yaniv\Desktop"
 
 class ServerDropbox():
     def __init__(self):
@@ -46,8 +46,8 @@ class ServerDropbox():
     def get_files_without_cursor(self, folder_path):
         return self.connected_dropbox.files_list_folder(folder_path)
 
-    def get_files_with_cursor(self, cursor):
-        return self.connected_dropbox.files_list_folder_continue(cursor)
+    # def get_files_with_cursor(self, cursor):
+    #     return self.connected_dropbox.files_list_folder_continue(cursor)
 
     def generate_refresh_token(self): #should run only once, refresh token is not expired
         AUTHORIZATION_CODE = ''       #should get it from the url:https://www.dropbox.com/oauth2/authorize?client_id=<APP_KEY>&token_access_type=offline&response_type=code 
