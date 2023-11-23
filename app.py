@@ -5,20 +5,21 @@ import json
 from dropbox.exceptions import AuthError
 from FolderMonitor import FolderMonitor
 from ServerDropbox import ServerDropbox
-from watchdog.observers import Observer
+#from watchdog.observers import Observer
 
 # Ignore warnings
 warnings.simplefilter("ignore")
 
 # Define the file paths and Dropbox-related settings
 #SOURCE_PATH = r"C:\Users\yaniv\Desktop\Dropbox" # this is for testing
-SOURCE_PATH = r"/misc/work/jenkins/Dropbox"
+SOURCE_PATH = r"/misc/work/Dropbox"
 FOLDER_FOR_DOWNLOADS = os.path.join(SOURCE_PATH, "Macaque R24/sequencing/")
 DROPBOX_FOLDER_PATH = '/macaque r24/sequencing'.lower() #where the folder you want to monitor lacated in dropbox
 DROPBOX_MISSING_FILE_PATH = '/macaque r24/results/missing.xlsx'.lower()
 SERVER_MISSING_FILE_PATH = os.path.join(SOURCE_PATH, 'Macaque R24/results/missing.xlsx')
 ALL_SAMPLES_PATH = os.path.join(SOURCE_PATH, 'Macaque R24/sequencing/all_samples_file.txt') 
-
+RESULT_FOLDER_PATH = os.path.join(SOURCE_PATH, 'Macaque R24/results')
+DROPBOX_RESULT_PATH = '/macaque r24/results'.lower()
 
 # Function to monitor Dropbox folder
 def monitor_dropbox_folder():
@@ -30,7 +31,7 @@ def monitor_dropbox_folder():
     folder_monitor = FolderMonitor()  # Initialize FolderMonitor class
     start_new_check(server_dropbox, folder_monitor)
     print("finish daily run")
-    server_dropbox.update_file(DROPBOX_MISSING_FILE_PATH, SERVER_MISSING_FILE_PATH) # updating the missing file on dropbox
+    server_dropbox.upload_folder(RESULT_FOLDER_PATH,DROPBOX_RESULT_PATH)
 
 # Function to initiate a new Dropbox folder check
 def start_new_check(server_dropbox, folder_monitor):
@@ -84,6 +85,7 @@ def update_samples_file(past_day_subjects):
                 all_samples_file.write(subject_path + '\n')
     
     return all_samples
+
 
 # Main function
 if __name__ == "__main__":

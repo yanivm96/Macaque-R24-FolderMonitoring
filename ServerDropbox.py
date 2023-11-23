@@ -4,7 +4,7 @@ from dropbox.exceptions import AuthError
 import os
 import json
 
-SOURCE_PATH = r"/misc/work/jenkins"
+SOURCE_PATH = r"/misc/work"
 #SOURCE_PATH = r"C:\Users\yaniv\Desktop"
 
 class ServerDropbox():
@@ -105,12 +105,54 @@ class ServerDropbox():
             entry_local_path = os.path.join(local_path, entry.name)
             self.download_entry(entry, entry_local_path)
 
-    def update_file(self, dropbox_file_path, local_file_path): #updating the missing file on dropbox
+    
+    def upload_folder(self, local_folder_path, dropbox_folder_path):
+        """
+        Uploads the contents of a local folder to a Dropbox folder, handling symbolic links.
+        """
+        for root, dirs, files in os.walk(local_folder_path, followlinks=True):  # followlinks=True to traverse into directories pointed to by symlinks
+            for filename in files:
+                local_path = os.path.join(root, filename)
+                print(local_path)
+                # Handle symbolic links for files
+                if os.path.islink(local_path):
+                    local_path = '/misc' + os.path.realpath(local_path)
+                
+                #relative_path = os.path.relpath(local_path, local_folder_path)
+                dropbox_path = dropbox_folder_path.replace("\\", "/")
+                
+                self.upload_file(local_path, dropbox_path)
+
+            resolved_dirs = []
+            for dirname in dirs:
+                self.create_folder_in_dropbox(os.path.join(dropbox_folder_path, dirname).replace("\\", "/"))
+
+            # Upload contents of resolved directories
+            for resolved_dir, dropbox_resolved_dir in resolved_dirs:
+                self.upload_folder(resolved_dir, dropbox_resolved_dir)
+
+    def upload_file(self, local_file_path, dropbox_file_path):
+        """
+        Uploads a single file to Dropbox.
+        """
+        if os.path.isdir(local_file_path):
+            self.upload_folder(local_file_path,dropbox_file_path)
+        
+        else:
+            with open(local_file_path, 'rb') as f:
+                self.connected_dropbox.files_upload(f.read(), dropbox_file_path, mode=dropbox.files.WriteMode('overwrite'))
+                print(f"File '{dropbox_file_path}' updated successfully.")
+
+    def create_folder_in_dropbox(self, dropbox_folder_path):
+        """
+        Creates a folder in Dropbox if it doesn't already exist.
+        """
         try:
-            with open(local_file_path, 'rb') as missing_file:
-                self.connected_dropbox.files_upload(missing_file.read(), dropbox_file_path, mode=dropbox.files.WriteMode('overwrite'))
-            print(f"File '{dropbox_file_path}' updated successfully.")
+            self.connected_dropbox.files_create_folder_v2(dropbox_folder_path)
         except dropbox.exceptions.ApiError as e:
-            print(f"Error updating file '{dropbox_file_path}': {e}")
+            if e.error.is_path() and e.error.get_path().is_conflict():
+                print(f"Folder '{dropbox_folder_path}' already exists on Dropbox.")
+            else:
+                raise
 
     

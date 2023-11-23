@@ -11,8 +11,8 @@ from openpyxl import load_workbook
 
 
 
-SOURCE_PATH = r"/misc/work/jenkins"
-#SOURCE_PATH = r"C:\Users\yaniv\Desktop"
+#SOURCE_PATH = r"/misc/work"
+SOURCE_PATH = r"C:\Users\yaniv\Desktop"
 
 METADATA_SCHEMA_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/jsonFormats/schema.json')
 METADATA_FILE_PATH = os.path.join(SOURCE_PATH, 'Dropbox/Macaque R24/subject_metadata/metadata.xlsx')
