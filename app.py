@@ -5,13 +5,13 @@ import json
 from dropbox.exceptions import AuthError
 from FolderMonitor import FolderMonitor
 from ServerDropbox import ServerDropbox
-#from watchdog.observers import Observer
 
 # Ignore warnings
 warnings.simplefilter("ignore")
 
 # Define the file paths and Dropbox-related settings
-#SOURCE_PATH = r"C:\Users\yaniv\Desktop\Dropbox" # this is for testing
+#SOURCE_PATH = r"C:\Users\yaniv\Desktop\Dropbox" # this is for testing 
+
 SOURCE_PATH = r"/misc/work/Dropbox"
 FOLDER_FOR_DOWNLOADS = os.path.join(SOURCE_PATH, "Macaque R24/sequencing/")
 DROPBOX_FOLDER_PATH = '/macaque r24/sequencing'.lower() #where the folder you want to monitor lacated in dropbox
@@ -53,6 +53,8 @@ def start_new_check(server_dropbox, folder_monitor):
 
     except Exception as e:
         print(e)
+
+
 
 
 def download_new_data_from_past_day(result, server_dropbox):
